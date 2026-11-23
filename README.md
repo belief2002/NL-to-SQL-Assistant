@@ -79,7 +79,7 @@ streamlit run app.py
 ## 📁 File Structure
 
 `
-NL_to_SQL_Assistant/\n
+NL_to_SQL_Assistant/
 ├── chat_app.py         # Streamlit GPT-like multi-turn chat interface
 ├── app.py              # Streamlit classic single-turn form interface
 ├── nl2sql.py           # Core NL-to-SQL pipeline (prompt builder, Gemini LLM, execution, retry)
