@@ -56,19 +56,22 @@ The sample E-commerce database (sales.db) is generated automatically on first ru
 
 
 # Option A: Run the GPT-Like Chat Interface (Recommended)
-streamlit run chat_app.py
+`streamlit run chat_app.py
+`
 
 # Option B: Run the Classic Form UI
+`
 streamlit run app.py
 `
 
 ### 5. Running Tests & Evaluation
 
 # Run pytest test suite (74 tests covering guards, pipeline, BYOD, and dates)
-pytest tests/ -v
+`pytest tests/ -v
+`
 
 # Run the evaluation suite (15 Q&A test cases)
-python eval.py
+`python eval.py
 `
 
 ---
@@ -76,7 +79,7 @@ python eval.py
 ## 📁 File Structure
 
 `
-NL_to_SQL_Assistant/
+NL_to_SQL_Assistant/\n
 ├── chat_app.py         # Streamlit GPT-like multi-turn chat interface
 ├── app.py              # Streamlit classic single-turn form interface
 ├── nl2sql.py           # Core NL-to-SQL pipeline (prompt builder, Gemini LLM, execution, retry)
