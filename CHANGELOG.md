@@ -304,4 +304,24 @@ The following files are planned as part of this project (from the spec):
 
 ---
 
+---
+
+### [2026-11-23] — Session 12: GPT-Like Chat Interface & Branch Merge
+
+#### Added
+- **`chat_app.py`** — GPT-like chat interface for the NL-to-SQL Assistant:
+  - Persistent conversation memory via `st.session_state["chat_messages"]` holding user messages and assistant responses.
+  - Pinned bottom chat input (`st.chat_input`) for natural multi-turn chat interaction.
+  - Inline rendering of SQL expanders, data tables, automatic charts (bar/line), summaries, and CSV download buttons inside chat bubbles.
+  - \"🗑️ Clear Chat\" button in sidebar to reset conversation history.
+  - Full compatibility with both Sample Sales Data and Bring-Your-Own-Data (BYOD) modes.
+
+#### Changed — Git & Workflow
+- **`.gitignore`** — Added `*.db-shm` and `*.db-wal` to ignore SQLite WAL files.
+- **Git Merge** — Merged `chatui` branch into `main` (`git merge chatui --no-ff`).
+
+#### Test Results
+- **Syntax & AST Validation** — Verified `chat_app.py` passes Python compilation and AST parsing (2,285 nodes) ✅
+- **74/74 tests passed** ✅
+
 *This log will be updated continuously as development progresses.*
