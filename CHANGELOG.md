@@ -324,4 +324,12 @@ The following files are planned as part of this project (from the spec):
 - **Syntax & AST Validation** — Verified `chat_app.py` passes Python compilation and AST parsing (2,285 nodes) ✅
 - **74/74 tests passed** ✅
 
+### [2026-11-23] — Session 13: README Documentation Update
+
+#### Changed — Documentation
+- **`README.md`** — Updated project documentation to include the new **GPT-like Chat Interface (`chat_app.py`)**, adding instructions to run both the classic form UI (`app.py`) and chat UI (`chat_app.py`), and updating the project structure tree.
+
+#### Test Results
+- **74/74 tests passed** ✅
+
 *This log will be updated continuously as development progresses.*

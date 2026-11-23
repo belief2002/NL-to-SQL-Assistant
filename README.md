@@ -26,6 +26,7 @@ A portfolio project built for a **Data Analyst resume**, demonstrating prompt en
 ## ✨ Features
 
 - **Natural language → SQL**: Ask questions in plain English, get accurate SQL
+- **GPT-like Chat Interface (`chat_app.py`)**: Multi-turn conversation memory, chat bubbles, pinned bottom input, and inline results
 - **Bring-Your-Own-Data (BYOD) mode**: Upload multiple CSV/XLSX files (up to 50 MB each), query your own datasets on the fly
 - **Automated Data Profiling**: Table row counts, inferred types, null counts, sample previews
 - **Smart Data Sanitization**: `snake_case` column deduplication, mixed date format detection to ISO `YYYY-MM-DD`, and currency string parsing
@@ -68,8 +69,11 @@ cp .env.example .env
 ### Running the App
 
 ```bash
-# The database is created automatically on first run
+# Classic single-turn form UI
 streamlit run app.py
+
+# GPT-like persistent chat UI
+streamlit run chat_app.py
 ```
 
 ### Running Tests
@@ -225,7 +229,8 @@ Even if Layer 1 is bypassed, Layer 2 prevents writes, schema access, and resourc
 
 ```
 NL_to_SQL_Assistant/
-├── app.py              # Streamlit web application (Sample & BYOD modes)
+├── app.py              # Streamlit web application (Classic form UI)
+├── chat_app.py         # Streamlit GPT-like chat interface
 ├── data_loader.py      # BYOD ingestion, sanitization, profiling & dynamic prompt generator
 ├── nl2sql.py           # Core NL→SQL pipeline (prompt builder, LLM, execution)
 ├── sql_guard.py        # Two-layer SQL safety (validation + authorizer)
