@@ -76,7 +76,7 @@ python eval.py
 ## 📁 File Structure
 
 `
-NL_to_SQL_Assistant/
+NL_to_SQL_Assistant/ \n
 ├── chat_app.py         # Streamlit GPT-like multi-turn chat interface
 ├── app.py              # Streamlit classic single-turn form interface
 ├── nl2sql.py           # Core NL-to-SQL pipeline (prompt builder, Gemini LLM, execution, retry)
