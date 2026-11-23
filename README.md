@@ -29,7 +29,7 @@ l2sql.py)**: Dynamic prompt generation from live database schemas, categorical v
 - A [Google Gemini API key](https://aistudio.google.com/app/apikey)
 
 ### 2. Installation
-`ash
+
 # Clone the repository
 git clone https://github.com/YOUR_USERNAME/NL_to_SQL_Assistant.git
 cd NL_to_SQL_Assistant
@@ -41,7 +41,7 @@ venv\Scripts\activate       # Windows
 
 # Install dependencies
 pip install -r requirements.txt
-`
+
 
 ### 3. Environment Setup
 Create a .env file in the root directory (or copy from .env.example):
@@ -54,7 +54,7 @@ DB_PATH=sales.db
 ### 4. Running the Application
 The sample E-commerce database (sales.db) is generated automatically on first run.
 
-`ash
+
 # Option A: Run the GPT-Like Chat Interface (Recommended)
 streamlit run chat_app.py
 
@@ -63,7 +63,7 @@ streamlit run app.py
 `
 
 ### 5. Running Tests & Evaluation
-`ash
+
 # Run pytest test suite (74 tests covering guards, pipeline, BYOD, and dates)
 pytest tests/ -v
 
@@ -103,7 +103,7 @@ NL_to_SQL_Assistant/
 
 | Layer | Technology / Library | Purpose |
 |---|---|---|
-| **Frontend** | Streamlit | Web UI (chat_app.py for chat, pp.py for form) |
+| **Frontend** | Streamlit | Web UI (chat_app.py for chat, app.py for form) |
 | **Backend & Pipeline** | Python 3.11+ | Core logic, regex, data transformation, prompt assembly |
 | **Database** | SQLite & pandas | Relational data store, SQL execution, tabular manipulation |
 | **LLM Backend** | Google Gemini SDK (google-genai) | Natural language understanding, SQL generation, plain-English summarization |
