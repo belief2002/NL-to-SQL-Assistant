@@ -9,7 +9,7 @@ A production-grade portfolio application built for data analytics and agentic AI
 ## ✨ Features
 
 - **💬 GPT-Like Chat Interface (chat_app.py)**: Persistent multi-turn conversation memory, chat bubbles, pinned bottom input (st.chat_input), and inline rendering of SQL, data tables, charts, and summaries.
-- **🖥️ Classic Form UI (pp.py)**: Single-turn prompt form with clickable example question chips, instant execution, and cancellation support.
+- **🖥️ Classic Form UI (app.py)**: Single-turn prompt form with clickable example question chips, instant execution, and cancellation support.
 - **📁 Bring-Your-Own-Data (BYOD) Mode**: Upload multiple CSV or Excel files (up to 50 MB each) to query your own datasets on the fly with auto-generated schemas.
 - **📊 Automated Data Profiling**: Table row counts, inferred data types (INTEGER, REAL, TEXT, DATE), null counts, and 5-row data previews.
 - **🧹 Smart Data Sanitization**: snake_case column deduplication, mixed date format detection to ISO YYYY-MM-DD, and currency/symbol cleaning.
