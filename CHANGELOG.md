@@ -332,4 +332,12 @@ The following files are planned as part of this project (from the spec):
 #### Test Results
 - **74/74 tests passed** ✅
 
+### [2026-11-23] — Session 14: Complete README Rewrite
+
+#### Changed — Documentation
+- **`README.md`** — Completely rewritten from scratch to provide a pristine, professional overview including Title, Description, Features, How to Run, File Structure, and Tech Stack.
+
+#### Test Results
+- **74/74 tests passed** ✅
+
 *This log will be updated continuously as development progresses.*
