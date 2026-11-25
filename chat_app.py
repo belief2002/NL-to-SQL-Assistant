@@ -416,7 +416,7 @@ if st.session_state.get("pending_question"):
                 result = _run_pipeline(question)
             _render_result(result)
         st.session_state["chat_messages"].append(
-            {"role": "assistant", "content": result.summary or result.error or "Done.", "result": result}
+            {"role": "assistant", "content": result.summary or result.refusal or result.error or "Done.", "result": result}
         )
 
     st.rerun()
@@ -452,7 +452,7 @@ if is_ready_to_ask:
                     result = _run_pipeline(question)
                 _render_result(result)
             st.session_state["chat_messages"].append(
-                {"role": "assistant", "content": result.summary or result.error or "Done.", "result": result}
+                {"role": "assistant", "content": result.summary or result.refusal or result.error or "Done.", "result": result}
             )
 
         st.rerun()

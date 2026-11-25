@@ -36,26 +36,37 @@ class GeminiLLM:
         "gemini-3.5-flash-lite",
         "gemini-3.1-flash-lite",
     ]
+    _client_cache: dict[str, Any] = {}
 
     def __init__(self, api_key: str, model: str = "gemini-3.8-flash") -> None:
         from google import genai
         from google.genai import types
 
-        self._client = genai.Client(api_key=api_key)
+        if api_key not in self._client_cache:
+            self._client_cache[api_key] = genai.Client(api_key=api_key)
+        self._client = self._client_cache[api_key]
         self._model = model
         self._types = types
 
+    def _build_config(self, system: str, model_name: str, disable_thinking: bool = True):
+        """Build GenerateContentConfig, disabling thinking on flash/lite models for speed."""
+        kwargs: dict[str, Any] = {
+            "system_instruction": system,
+            "temperature": 0.0,
+        }
+        if disable_thinking and ("flash" in model_name.lower() or "lite" in model_name.lower()):
+            thinking_cfg_cls = getattr(self._types, "ThinkingConfig", None)
+            if thinking_cfg_cls is not None:
+                kwargs["thinking_config"] = thinking_cfg_cls(thinking_budget=0)
+        return self._types.GenerateContentConfig(**kwargs)
+
     def chat(self, system: str, user: str) -> str:
-        config = self._types.GenerateContentConfig(
-            system_instruction=system,
-            temperature=0.0,  
-          )
-        
         # Build candidate model list starting with configured model
         models_to_try = [self._model] + [m for m in self.FALLBACK_MODELS if m != self._model]
         last_error = None
 
         for model_name in models_to_try:
+            config = self._build_config(system, model_name, disable_thinking=True)
             try:
                 response = self._client.models.generate_content(
                     model=model_name,
@@ -65,6 +76,19 @@ class GeminiLLM:
                 return response.text or ""
             except Exception as e:
                 err_str = str(e).lower()
+                # If thinking_config is unsupported for this model, retry once without it
+                if "thinking" in err_str:
+                    try:
+                        fallback_cfg = self._build_config(system, model_name, disable_thinking=False)
+                        response = self._client.models.generate_content(
+                            model=model_name,
+                            contents=user,
+                            config=fallback_cfg,
+                        )
+                        return response.text or ""
+                    except Exception as inner_e:
+                        e = inner_e
+                        err_str = str(e).lower()
                 # If unavailable (503), not found/retired (404), or rate-limited (429), try fallback
                 if any(code in err_str for code in ["503", "404", "unavailable", "not_found", "rate"]):
                     last_error = e
@@ -228,14 +252,31 @@ def _compute_date_references(db_path: str) -> str:
     return "\n".join(lines)
 
 
+_SYSTEM_PROMPT_CACHE: dict[tuple[str, float], str] = {}
+_ALLOWED_TABLES_CACHE: dict[tuple[str, float], set[str]] = {}
+
+
+def _get_db_cache_key(db_path: str) -> Optional[tuple[str, float]]:
+    """Return a (resolved_path, mtime) cache key if the DB file exists."""
+    try:
+        abs_path = os.path.abspath(db_path)
+        return (abs_path, os.path.getmtime(abs_path))
+    except OSError:
+        return None
+
+
 def build_system_prompt(db_path: str) -> str:
-    """Assemble the full system prompt for the SQL-generation LLM call."""
+    """Assemble the full system prompt for the SQL-generation LLM call (cached by DB mtime)."""
+    cache_key = _get_db_cache_key(db_path)
+    if cache_key and cache_key in _SYSTEM_PROMPT_CACHE:
+        return _SYSTEM_PROMPT_CACHE[cache_key]
+
     schema = _get_schema_text(db_path)
     categorical = _get_categorical_values(db_path)
     dates = _compute_date_references(db_path)
 
-    return f"""You are a SQL expert for a SQLite e-commerce analytics database.
-Your job: convert a natural-language business question into a single SQLite SELECT query.
+    prompt = f"""You are a SQL expert for a SQLite e-commerce analytics database.
+Your job: convert a natural-language e-commerce business question into a single SQLite SELECT query.
 
 ## Database Schema
 {schema}
@@ -254,11 +295,14 @@ Your job: convert a natural-language business question into a single SQLite SELE
 
 ## Output Format
 Return exactly one SQL query inside a ```sql code block.
-If the question is off-topic, unanswerable, or unrelated to this database, return:
-CANNOT_ANSWER: <brief reason>
+If the question is NOT related to e-commerce data (sales, orders, products, customers, regions) or is unanswerable from this database, immediately return ONLY:
+CANNOT_ANSWER: This question is not related to e-commerce data.
 
 Do NOT include any explanation outside the code block. Do NOT return multiple queries.
 """
+    if cache_key:
+        _SYSTEM_PROMPT_CACHE[cache_key] = prompt
+    return prompt
 
 
 def build_summary_prompt(question: str, sql: str, columns: list[str], rows: list[tuple]) -> str:
@@ -297,6 +341,78 @@ Do NOT suggest follow-up queries. Do NOT repeat the SQL."""
 _SQL_BLOCK_RE = re.compile(r"```sql\s*\n?(.*?)\n?\s*```", re.DOTALL | re.IGNORECASE)
 _CANNOT_ANSWER_RE = re.compile(r"CANNOT_ANSWER:\s*(.+)", re.IGNORECASE)
 
+_ECOMMERCE_KEYWORDS_RE = re.compile(
+    r"\b("
+    r"sales?|revenue|orders?|order_items?|products?|customers?|regions?|categor(?:y|ies)|"
+    r"segments?|items?|buyers?|merchants?|sellers?|vendors?|shops?|stores?|ecommerce|e-commerce|"
+    r"retail|cart|checkout|purchas(?:e|ed|es|ing)|buy|bought|sold|sell|selling|transactions?|"
+    r"invoices?|billing|payments?|refunds?|shipping|shipment|delivery|delivered|"
+    r"cancell?ed|returned|returns?|pending|shipped|processing|"
+    r"amount|price|cost|discounts?|quantity|qty|profit|margin|aov|"
+    r"unit_price|unit_cost|sales_amount|discount_pct|signup|signup_date|order_date|"
+    r"inr|rupees?|north|south|east|west|central|consumer|corporate|small business|"
+    r"electronics|office supplies|home & kitchen|clothing|books|"
+    r"earbuds|speaker|smart watch|usb-c|notebook|gel pen|desk organizer|sticky notes|"
+    r"bottle|cutting board|desk lamp|spice rack|t-shirt|jeans|sneakers|linen shirt|"
+    r"cit(?:y|ies)|states?"
+    r")\b",
+    re.IGNORECASE,
+)
+
+_OFF_TOPIC_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(
+        r"^\s*(hi|hello|hey|hola|namaste|good\s+(morning|afternoon|evening|night)|"
+        r"how\s+are\s+you|what'?s\s+up|thanks|thank\s+you|bye|goodbye|"
+        r"who\s+are\s+you|what\s+is\s+your\s+name|what\s+can\s+you\s+do)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"^\s*(?:what\s+is\s+|calculate\s+|solve\s+)?\d+(?:\.\d+)?\s*[\+\-\*\/\^]\s*\d+(?:\.\d+)?\s*\??\s*$",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b("
+        r"meaning of life|weather|forecast|temperature|rain|sunny|climate|"
+        r"cricket|football|soccer|nba|fifa|world cup|ipl|tennis|olympics|"
+        r"movie|movies|film|films|actor|actress|song|songs|music|lyrics|"
+        r"recipe|recipes|cook|cooking|bake|baking|calories|workout|exercise|"
+        r"symptom|symptoms|medicine|doctor|disease|hospital|patient|"
+        r"stock price|stocks|bitcoin|crypto|cryptocurrency|ethereum|"
+        r"president|prime minister|election|parliament|politics|"
+        r"quantum|relativity|photosynthesis|gravity|planet|solar system|universe|"
+        r"horoscope|zodiac|astrology|religion|god|"
+        r"tell me a (?:joke|story|fact|riddle)|"
+        r"write (?:a|me|an) (?:poem|story|essay|song|code|script|program|email|letter)|"
+        r"what is the capital of|who (?:invented|discovered|won)|"
+        r"translate\b|python script|javascript|html|css|c\+\+|react"
+        r")\b",
+        re.IGNORECASE,
+    ),
+]
+
+_ECOMMERCE_REFUSAL_MSG = (
+    "This question is not related to e-commerce data. "
+    "Please ask about sales, orders, products, customers, or regions."
+)
+
+
+def is_ecommerce_question(question: str) -> tuple[bool, Optional[str]]:
+    """
+    Fast pre-flight relevance check for e-commerce questions.
+
+    Returns (True, None) if the question is e-commerce related or plausibly about
+    the database, or (False, refusal_reason) if it is clearly off-topic.
+    """
+    if _ECOMMERCE_KEYWORDS_RE.search(question) or "₹" in question:
+        return True, None
+
+    for pattern in _OFF_TOPIC_PATTERNS:
+        if pattern.search(question):
+            return False, _ECOMMERCE_REFUSAL_MSG
+
+    return True, None
+
+
 MAX_QUESTION_LENGTH = 500
 MAX_ATTEMPTS = 2  # initial + 1 retry
 
@@ -309,6 +425,8 @@ class NL2SQLPipeline:
         db_path: Path to the SQLite database.
         llm: An object implementing LLMInterface.
         enable_summary: Whether to generate a plain-English summary.
+        system_prompt: Optional custom system prompt (disables e-commerce-only pre-filter unless ecommerce_only=True).
+        ecommerce_only: Whether to enforce the fast e-commerce relevance pre-filter.
     """
 
     def __init__(
@@ -317,12 +435,21 @@ class NL2SQLPipeline:
         llm: LLMInterface,
         enable_summary: bool = True,
         system_prompt: Optional[str] = None,
+        ecommerce_only: Optional[bool] = None,
     ) -> None:
         self._db_path = db_path
         self._llm = llm
         self._enable_summary = enable_summary
         self._system_prompt = system_prompt if system_prompt is not None else build_system_prompt(db_path)
-        self._allowed_tables = get_allowed_tables(db_path)
+        self._ecommerce_only = (system_prompt is None) if ecommerce_only is None else ecommerce_only
+
+        cache_key = _get_db_cache_key(db_path)
+        if cache_key and cache_key in _ALLOWED_TABLES_CACHE:
+            self._allowed_tables = _ALLOWED_TABLES_CACHE[cache_key]
+        else:
+            self._allowed_tables = get_allowed_tables(db_path)
+            if cache_key:
+                _ALLOWED_TABLES_CACHE[cache_key] = self._allowed_tables
 
     def ask(
         self,
@@ -345,6 +472,13 @@ class NL2SQLPipeline:
         if len(question) > MAX_QUESTION_LENGTH:
             result.error = f"Question is too long ({len(question)} chars). Maximum is {MAX_QUESTION_LENGTH}."
             return result
+
+        # ── Fast pre-flight e-commerce relevance check ───────────────────
+        if self._ecommerce_only:
+            is_relevant, refusal_reason = is_ecommerce_question(question)
+            if not is_relevant:
+                result.refusal = refusal_reason
+                return result
 
         # ── Generate SQL ─────────────────────────────────────────────────
         last_error: Optional[str] = None

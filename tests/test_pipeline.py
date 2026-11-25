@@ -227,3 +227,38 @@ class TestPipeline:
         assert result.error is not None
         assert "stopped" in result.error.lower()
         assert result.sql is None
+
+    @pytest.mark.parametrize(
+        "off_topic_q",
+        [
+            "What is the weather in Delhi today?",
+            "Tell me a joke",
+            "Write a python script to sort a list",
+            "Who won the cricket world cup?",
+            "Hello, how are you?",
+            "What is 25 + 17?",
+        ],
+    )
+    def test_fast_non_ecommerce_rejection_skips_llm(self, test_db, off_topic_q):
+        """Clearly non-ecommerce questions are rejected immediately with 0 LLM calls."""
+        llm = FakeLLM([])  # Would raise RuntimeError if .chat() were called
+        pipe = NL2SQLPipeline(test_db, llm, enable_summary=True)
+        result = pipe.ask(off_topic_q)
+
+        assert result.refusal is not None
+        assert "e-commerce" in result.refusal.lower()
+        assert result.error is None
+        assert result.sql is None
+        assert result.attempts == 0
+
+    def test_ecommerce_product_with_python_name_not_rejected(self, test_db):
+        """Questions about 'Python Programming' book orders must NOT be rejected."""
+        llm = FakeLLM([
+            "```sql\nSELECT COUNT(*) AS cnt FROM products WHERE product_name LIKE '%Python%'\n```",
+        ])
+        pipe = NL2SQLPipeline(test_db, llm, enable_summary=False)
+        result = pipe.ask("How many orders for Python Programming books?")
+
+        assert result.refusal is None
+        assert result.error is None
+        assert result.attempts == 1
